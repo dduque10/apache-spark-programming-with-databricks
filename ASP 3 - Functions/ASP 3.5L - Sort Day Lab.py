@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -9,7 +9,7 @@
 
 # MAGIC %md
 # MAGIC # Sort Day Lab
-# MAGIC 
+# MAGIC
 # MAGIC ##### Tasks
 # MAGIC 1. Define a UDF to label the day of week
 # MAGIC 1. Apply the UDF to label and sort by day of week
@@ -22,7 +22,7 @@
 # COMMAND ----------
 
 # MAGIC %md Start with a DataFrame of the average number of active users by day of week.
-# MAGIC 
+# MAGIC
 # MAGIC This was the resulting **`df`** in a previous lab.
 
 # COMMAND ----------
@@ -46,7 +46,7 @@ display(df)
 
 # MAGIC %md
 # MAGIC ### 1. Define UDF to label day of week
-# MAGIC 
+# MAGIC
 # MAGIC Use the **`label_day_of_week`** function provided below to create the UDF **`label_dow_udf`**
 
 # COMMAND ----------
@@ -58,8 +58,7 @@ def label_day_of_week(day: str) -> str:
 
 # COMMAND ----------
 
-# TODO
-label_dow_udf = FILL_IN
+label_dow_udf = udf(label_day_of_week)
 
 # COMMAND ----------
 
@@ -70,8 +69,7 @@ label_dow_udf = FILL_IN
 
 # COMMAND ----------
 
-# TODO
-final_df = FILL_IN
+final_df = df.withColumn("day", label_dow_udf(col("day"))).sort("day")
 
 display(final_df)
 
