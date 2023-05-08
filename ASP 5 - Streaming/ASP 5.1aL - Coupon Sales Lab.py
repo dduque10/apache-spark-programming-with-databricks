@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -15,7 +15,7 @@
 # MAGIC 3. Write streaming query results to Delta
 # MAGIC 4. Monitor streaming query
 # MAGIC 5. Stop streaming query
-# MAGIC 
+# MAGIC
 # MAGIC ##### Classes
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.ss/api/pyspark.sql.streaming.DataStreamReader.html" target="_blank">DataStreamReader</a>
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.ss/api/pyspark.sql.streaming.DataStreamWriter.html" target="_blank">DataStreamWriter</a>
@@ -30,13 +30,16 @@
 # MAGIC %md ### 1. Read data stream
 # MAGIC - Set to process 1 file per trigger
 # MAGIC - Read from Delta files in the source directory specified by **`DA.paths.sales`**
-# MAGIC 
+# MAGIC
 # MAGIC Assign the resulting DataFrame to **`df`**.
 
 # COMMAND ----------
 
-# TODO
-df = (spark.FILL_IN
+df = (spark
+      .readStream
+      .option("maxFilesPerTrigger", 1)
+      .format("delta")
+      .load(DA.paths.sales)
 )
 
 # COMMAND ----------
@@ -52,13 +55,16 @@ DA.tests.validate_1_1(df)
 # MAGIC %md ### 2. Filter for transactions with coupon codes
 # MAGIC - Explode the **`items`** field in **`df`** with the results replacing the existing **`items`** field
 # MAGIC - Filter for records where **`items.coupon`** is not null
-# MAGIC 
+# MAGIC
 # MAGIC Assign the resulting DataFrame to **`coupon_sales_df`**.
 
 # COMMAND ----------
 
-# TODO
-coupon_sales_df = (df.FILL_IN
+from pyspark.sql.functions import *
+
+coupon_sales_df = (df
+.withColumn("items", explode("items"))
+.filter(col("items.coupon").isNotNull())
 )
 
 # COMMAND ----------
@@ -77,16 +83,23 @@ DA.tests.validate_2_1(coupon_sales_df.schema)
 # MAGIC - Set a trigger interval of 1 second
 # MAGIC - Set the checkpoint location to **`coupons_checkpoint_path`**
 # MAGIC - Set the output path to **`coupons_output_path`**
-# MAGIC 
+# MAGIC
 # MAGIC Start the streaming query and assign the resulting handle to **`coupon_sales_query`**.
 
 # COMMAND ----------
 
-# TODO
 coupons_checkpoint_path = f"{DA.paths.checkpoints}/coupon-sales"
 coupons_output_path = f"{DA.paths.working_dir}/coupon-sales/output"
 
-coupon_sales_query = (coupon_sales_df.FILL_IN)
+coupon_sales_query = (coupon_sales_df.
+writeStream
+.outputMode("append")
+.format("delta")
+.queryName("coupon_sales")
+.trigger(processingTime="1 second")
+.option("checkpointLocation", coupons_checkpoint_path)
+.start(coupons_output_path)
+)
 
 DA.block_until_stream_is_ready(coupon_sales_query)
 
@@ -106,13 +119,11 @@ DA.tests.validate_3_1(coupon_sales_query)
 
 # COMMAND ----------
 
-# TODO
-query_id = coupon_sales_query.FILL_IN
+query_id = coupon_sales_query.id
 
 # COMMAND ----------
 
-# TODO
-query_status = coupon_sales_query.FILL_IN
+query_status = coupon_sales_query.status
 
 # COMMAND ----------
 
@@ -129,8 +140,7 @@ DA.tests.validate_4_1(query_id, query_status)
 
 # COMMAND ----------
 
-# TODO
-coupon_sales_query.FILL_IN
+coupon_sales_query.stop()
 
 # COMMAND ----------
 
@@ -146,7 +156,7 @@ DA.tests.validate_5_1(coupon_sales_query)
 
 # COMMAND ----------
 
-# TODO
+display(spark.read.format("delta").load(coupons_output_path))
 
 # COMMAND ----------
 
