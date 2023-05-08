@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -31,8 +31,7 @@ delta_sales_path = f"{DA.paths.working_dir}/delta-sales"
 
 # COMMAND ----------
 
-# TODO
-sales_df.FILL_IN
+sales_df.write.format("delta").save(delta_sales_path)
 
 # COMMAND ----------
 
@@ -50,8 +49,9 @@ assert len(dbutils.fs.ls(delta_sales_path)) > 0
 
 # COMMAND ----------
 
-# TODO
-updated_sales_df = FILL_IN
+from pyspark.sql.functions import size, col
+
+updated_sales_df = sales_df.withColumn("items", size(col("items")))
 display(updated_sales_df)
 
 # COMMAND ----------
@@ -69,13 +69,12 @@ print("All test pass")
 
 # MAGIC %md ### 3. Rewrite sales data to same Delta path
 # MAGIC Write **`updated_sales_df`** to the same Delta location **`delta_sales_path`**.
-# MAGIC 
+# MAGIC
 # MAGIC <img src="https://files.training.databricks.com/images/icon_hint_32.png" alt="Hint"> This will fail without an option to overwrite the schema.
 
 # COMMAND ----------
 
-# TODO
-updated_sales_df.FILL_IN
+updated_sales_df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(delta_sales_path)
 
 # COMMAND ----------
 
@@ -93,16 +92,17 @@ print("All test pass")
 # MAGIC - Drop table **`sales_delta`** if it exists
 # MAGIC - Create **`sales_delta`** table using the **`delta_sales_path`** location
 # MAGIC - List version history for the **`sales_delta`** table
-# MAGIC 
+# MAGIC
 # MAGIC An example of a SQL query inside of `spark.sql()` would be something like ```spark.sql("SELECT * FROM sales_data")```
 
 # COMMAND ----------
 
-# TODO
+spark.sql("DROP TABLE IF EXISTS sales_delta")
+spark.sql("CREATE TABLE sales_delta USING DELTA LOCATION '{}'".format(delta_sales_path))
 
 # COMMAND ----------
 
-# TODO
+display(spark.sql("DESCRIBE HISTORY sales_delta"))
 
 # COMMAND ----------
 
@@ -123,8 +123,7 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-old_sales_df = FILL_IN
+old_sales_df = spark.read.format("delta").option("VersionAsOf", 0).load(delta_sales_path)
 display(old_sales_df)
 
 # COMMAND ----------
