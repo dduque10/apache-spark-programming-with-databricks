@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -41,13 +41,17 @@ df = (spark.readStream
 # MAGIC %md ### 1. Cast to timestamp and add watermark for 2 hours
 # MAGIC - Add a **`createdAt`** column by dividing **`event_timestamp`** by 1M and casting to timestamp
 # MAGIC - Set a watermark of 2 hours on the **`createdAt`** column
-# MAGIC 
+# MAGIC
 # MAGIC Assign the resulting DataFrame to **`events_df`**.
 
 # COMMAND ----------
 
-# TODO
-events_df = (df.FILL_IN)
+from pyspark.sql.functions import *
+
+events_df = (df
+.withColumn("createdAt", to_timestamp(col("event_timestamp")/1000000))
+.withWatermark("createdAt", "2 hours")
+)
 
 # COMMAND ----------
 
@@ -60,7 +64,7 @@ DA.tests.validate_1_1(events_df.schema)
 # COMMAND ----------
 
 # MAGIC %md ### 2. Aggregate active users by traffic source for 1 hour windows
-# MAGIC 
+# MAGIC
 # MAGIC - Set the default shuffle partitions to the number of cores on your cluster
 # MAGIC - Group by **`traffic_source`** with 1-hour tumbling windows based on the **`createdAt`** column
 # MAGIC - Aggregate the approximate count of distinct users per **`user_id`** and alias the resulting column to **`active_users`**
@@ -70,10 +74,13 @@ DA.tests.validate_1_1(events_df.schema)
 
 # COMMAND ----------
 
-# TODO
-spark.FILL_IN
+spark.conf.set("spark.sql.shuffle.partitions", sc.defaultParallelism)
 
-traffic_df = (events_df.FILL_IN
+traffic_df = (events_df
+.groupBy("traffic_source", window(col("createdAt"), "1 hour"))
+.agg(approxCountDistinct("user_id").alias("active_users"))
+.select("traffic_source", "active_users", hour(col("window.start")).alias("hour"))
+.sort("hour")
 )
 
 # COMMAND ----------
@@ -97,12 +104,12 @@ DA.tests.validate_2_1(traffic_df.schema)
 
 # COMMAND ----------
 
-# TODO
+display(traffic_df, streamName="hourly_traffic")
 
 # COMMAND ----------
 
 # MAGIC %md **3.1: CHECK YOUR WORK**
-# MAGIC 
+# MAGIC
 # MAGIC - The bar chart should plot **`hour`** on the x-axis and **`active_users`** on the y-axis
 # MAGIC - Six bars should appear at every hour for all traffic sources
 # MAGIC - The chart should stop at hour 23
@@ -115,10 +122,12 @@ DA.tests.validate_2_1(traffic_df.schema)
 
 # COMMAND ----------
 
-# TODO
 DA.block_until_stream_is_ready("hourly_traffic")
 
-for s in FILL_IN:
+for s in spark.streams.active:
+    if s.name == "hourly_traffic":
+        s.stop()
+        s.awaitTermination()
 
 # COMMAND ----------
 
