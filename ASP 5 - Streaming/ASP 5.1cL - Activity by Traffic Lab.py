@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -10,7 +10,7 @@
 # MAGIC %md
 # MAGIC # Activity by Traffic Lab
 # MAGIC Process streaming data to display total active users by traffic source.
-# MAGIC 
+# MAGIC
 # MAGIC ##### Objectives
 # MAGIC 1. Read data stream
 # MAGIC 2. Get active users by traffic source
@@ -18,7 +18,7 @@
 # MAGIC 4. Execute the same streaming query with DataStreamWriter
 # MAGIC 5. View results being updated in the query table
 # MAGIC 6. List and stop all active streams
-# MAGIC 
+# MAGIC
 # MAGIC ##### Classes
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.ss/api/pyspark.sql.streaming.DataStreamReader.html" target="_blank">DataStreamReader</a>
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.ss/api/pyspark.sql.streaming.DataStreamWriter.html" target="_blank">DataStreamWriter</a>
@@ -38,13 +38,16 @@
 # MAGIC %md ### 1. Read data stream
 # MAGIC - Set to process 1 file per trigger
 # MAGIC - Read from Delta with filepath stored in **`DA.paths.events`**
-# MAGIC 
+# MAGIC
 # MAGIC Assign the resulting Query to **`df`**.
 
 # COMMAND ----------
 
-# TODO
-df = FILL_IN
+df = (spark.readStream
+.format("delta")
+.option("maxFilesPerTrigger", 1)
+.load(DA.paths.events)
+)
 
 # COMMAND ----------
 
@@ -64,10 +67,11 @@ DA.tests.validate_1_1(df)
 
 # COMMAND ----------
 
-# TODO
-spark.FILL_IN
+from pyspark.sql.functions import *
 
-traffic_df = df.FILL_IN
+spark.conf.set("spark.sql.shuffle.partitions", sc.defaultParallelism)
+
+traffic_df = df.groupBy("traffic_source").agg(approx_count_distinct("user_id").alias("active_users")).sort("traffic_source")
 
 # COMMAND ----------
 
@@ -85,7 +89,7 @@ DA.tests.validate_2_1(traffic_df.schema)
 
 # COMMAND ----------
 
-# TODO
+display(traffic_df)
 
 # COMMAND ----------
 
@@ -102,8 +106,12 @@ DA.tests.validate_2_1(traffic_df.schema)
 
 # COMMAND ----------
 
-# TODO
-traffic_query = (traffic_df.FILL_IN
+traffic_query = (traffic_df.writeStream
+.queryName("active_users_by_traffic")
+.format("memory")
+.outputMode("complete")
+.trigger(processingTime="1 second")
+.start()
 )
 
 # COMMAND ----------
@@ -122,13 +130,13 @@ DA.tests.validate_4_1(traffic_query)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT * FROM active_users_by_traffic
 
 # COMMAND ----------
 
 # MAGIC %md **5.1: CHECK YOUR WORK**
 # MAGIC Your query should eventually result in the following values.
-# MAGIC 
+# MAGIC
 # MAGIC |traffic_source|active_users|
 # MAGIC |---|---|
 # MAGIC |direct|438886|
@@ -146,7 +154,10 @@ DA.tests.validate_4_1(traffic_query)
 
 # COMMAND ----------
 
-# TODO
+for s in spark.streams.active:
+    print(s.name)
+    s.stop()
+    s.awaitTermination()
 
 # COMMAND ----------
 
