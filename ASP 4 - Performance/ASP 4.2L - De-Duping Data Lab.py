@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md-sandbox
-# MAGIC 
+# MAGIC
 # MAGIC <div style="text-align: center; line-height: 0; padding-top: 9px;">
 # MAGIC   <img src="https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png" alt="Databricks Learning" style="width: 600px">
 # MAGIC </div>
@@ -9,35 +9,35 @@
 
 # MAGIC %md
 # MAGIC # De-Duping Data Lab
-# MAGIC 
+# MAGIC
 # MAGIC In this exercise, we're doing ETL on a file we've received from a customer. That file contains data about people, including:
-# MAGIC 
+# MAGIC
 # MAGIC * first, middle and last names
 # MAGIC * gender
 # MAGIC * birth date
 # MAGIC * Social Security number
 # MAGIC * salary
-# MAGIC 
+# MAGIC
 # MAGIC But, as is unfortunately common in data we get from this customer, the file contains some duplicate records. Worse:
-# MAGIC 
+# MAGIC
 # MAGIC * In some of the records, the names are mixed case (e.g., "Carol"), while in others, they are uppercase (e.g., "CAROL").
 # MAGIC * The Social Security numbers aren't consistent either. Some of them are hyphenated (e.g., "992-83-4829"), while others are missing hyphens ("992834829").
-# MAGIC 
+# MAGIC
 # MAGIC If all of the name fields match -- if you disregard character case -- then the birth dates and salaries are guaranteed to match as well,
 # MAGIC and the Social Security Numbers *would* match if they were somehow put in the same format.
-# MAGIC 
+# MAGIC
 # MAGIC Your job is to remove the duplicate records. The specific requirements of your job are:
-# MAGIC 
+# MAGIC
 # MAGIC * Remove duplicates. It doesn't matter which record you keep; it only matters that you keep one of them.
 # MAGIC * Preserve the data format of the columns. For example, if you write the first name column in all lowercase, you haven't met this requirement.
-# MAGIC 
+# MAGIC
 # MAGIC <img src="https://files.training.databricks.com/images/icon_hint_32.png" alt="Hint"> The initial dataset contains 103,000 records.
 # MAGIC The de-duplicated result has 100,000 records.
-# MAGIC 
+# MAGIC
 # MAGIC Next, write the results in **Delta** format as a **single data file** to the directory given by the variable **delta_dest_dir**.
-# MAGIC 
+# MAGIC
 # MAGIC <img src="https://files.training.databricks.com/images/icon_hint_32.png" alt="Hint"> Remember the relationship between the number of partitions in a DataFrame and the number of files written.
-# MAGIC 
+# MAGIC
 # MAGIC ##### Methods
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/io.html" target="_blank">DataFrameReader</a>
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html" target="_blank">DataFrame</a>
@@ -59,7 +59,7 @@ dbutils.fs.head(f"{DA.paths.datasets}/people/people-with-dups.txt")
 
 # COMMAND ----------
 
-# TODO
+from pyspark.sql.functions import *
 
 source_file = f"{DA.paths.datasets}/people/people-with-dups.txt"
 delta_dest_dir = f"{DA.paths.working_dir}/people"
@@ -68,7 +68,15 @@ delta_dest_dir = f"{DA.paths.working_dir}/people"
 dbutils.fs.rm(delta_dest_dir, True)
 
 # Complete your work here...
+df = (spark.read.csv(source_file, sep=":", header=True)
+        .withColumn("firstName", upper(col("firstName")))
+        .withColumn("middleName", upper(col("middleName")))
+        .withColumn("lastName", upper(col("lastName")))
+        .withColumn("ssn", translate("ssn", "-", ""))
+        .dropDuplicates()
+)
 
+df.coalesce(1).write.format("delta").save(delta_dest_dir)
 
 # COMMAND ----------
 
